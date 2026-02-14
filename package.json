@@ -1,0 +1,14 @@
+{
+  "name": "sgpi-backend",
+  "version": "1.0.0",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.25.1",
+    "express": "^5.2.1",
+    "dotenv": "^16.4.5"
+  }
+}
