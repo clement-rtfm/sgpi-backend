@@ -46,7 +46,7 @@ async function generateInvite() {
 function msUntilNextThursday() {
     const now = new Date();
     const day = now.getDay(); // 4 = jeudi
-    const daysUntilThursday = (4 - day + 7) % 7 || 7;
+    const daysUntilThursday = (6 - day + 7) % 7 || 7;
 
     const nextThursday = new Date(now);
     nextThursday.setDate(now.getDate() + daysUntilThursday);
