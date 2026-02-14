@@ -47,19 +47,19 @@ async function generateInvite() {
 }
 
 // Calcul du temps restant jusqu'au prochain vendredi 00:00
-function msUntilNextThursday() {
+function msUntilNextFriday() {
     const now = new Date();
     const day = now.getDay(); // 0 = dimanche, 1 = lundi, ..., 6 = samedi
-    const targetDay = 4; // jeudi
+    const targetDay = 5; // vendredi
 
-    const daysUntilThursday = (targetDay - day + 7) % 7 || 7;
+    const daysUntilFriday = (targetDay - day + 7) % 7 || 7; 
+    const nextFriday = new Date(now);
+    nextFriday.setDate(now.getDate() + daysUntilFriday);
+    nextFriday.setHours(0, 0, 0, 0);
 
-    const nextThursday = new Date(now);
-    nextThursday.setDate(now.getDate() + daysUntilThursday);
-    nextThursday.setHours(0, 0, 0, 0);
-
-    return nextThursday - now;
+    return nextFriday - now;
 }
+
 
 
 client.once("ready", async () => {
