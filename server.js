@@ -65,17 +65,21 @@ function msUntilNextFriday() {
 client.once("ready", async () => {
     console.log(`Bot connecté : ${client.user.tag}`);
 
-    // Ne pas générer d'invite si ce n'est pas vendredi
+    // Générer une invite admin immédiatement pour avoir toujours un lien
+    await generateInvite();
+
+    // Si c'est vendredi, garder la même invite comme lien "normal"
     if (isFriday()) {
-        await generateInvite();
+        console.log("Vendredi : l'invite est accessible normalement.");
     }
 
     // Planification pour le prochain vendredi
     setTimeout(async () => {
         await generateInvite();
-        setInterval(generateInvite, 7 * 24 * 60 * 60 * 1000); // toutes les semaines
+        setInterval(generateInvite, 7 * 24 * 60 * 60 * 1000);
     }, msUntilNextFriday());
 });
+
 
 client.login(process.env.DISCORD_TOKEN);
 
@@ -83,9 +87,9 @@ client.login(process.env.DISCORD_TOKEN);
 app.get("/api/discord-link", (req, res) => {
     const adminKey = req.query.admin_key;
 
-    // Accès admin : toujours
+    // Accès admin : toujours retourne currentInvite même hors vendredi
     if (adminKey && adminKey === process.env.ADMIN_KEY) {
-        return res.json({ link: currentInvite || "Pas encore généré, attends vendredi pour le lien normal." });
+        return res.json({ link: currentInvite });
     }
 
     // Mode normal : seulement le vendredi
@@ -93,12 +97,9 @@ app.get("/api/discord-link", (req, res) => {
         return res.status(503).json({ error: "Accès fermé" });
     }
 
-    if (!currentInvite) {
-        return res.status(503).json({ error: "Invite non générée, réessaie dans quelques secondes." });
-    }
-
     res.json({ link: currentInvite });
 });
+
 
 app.listen(PORT, () => {
     console.log("Backend actif sur le port", PORT);
