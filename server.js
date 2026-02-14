@@ -46,31 +46,33 @@ async function generateInvite() {
     }
 }
 
+// Retourne true si aujourd'hui c'est vendredi
+function isFriday() {
+    return new Date().getDay() === 5;
+}
+
 // Calcul du temps restant jusqu'au prochain vendredi 00:00
 function msUntilNextFriday() {
     const now = new Date();
-    const day = now.getDay(); // 0 = dimanche, 1 = lundi, ..., 6 = samedi
     const targetDay = 5; // vendredi
-
-    const daysUntilFriday = (targetDay - day + 7) % 7 || 7; 
+    const daysUntilFriday = (targetDay - now.getDay() + 7) % 7 || 7;
     const nextFriday = new Date(now);
     nextFriday.setDate(now.getDate() + daysUntilFriday);
     nextFriday.setHours(0, 0, 0, 0);
-
     return nextFriday - now;
 }
-
-
 
 client.once("ready", async () => {
     console.log(`Bot connecté : ${client.user.tag}`);
 
-    // Génération immédiate pour que l'API fonctionne dès le démarrage
-    await generateInvite();
+    // Ne pas générer d'invite si ce n'est pas vendredi
+    if (isFriday()) {
+        await generateInvite();
+    }
 
     // Planification pour le prochain vendredi
-    setTimeout(() => {
-        generateInvite();
+    setTimeout(async () => {
+        await generateInvite();
         setInterval(generateInvite, 7 * 24 * 60 * 60 * 1000); // toutes les semaines
     }, msUntilNextFriday());
 });
@@ -81,19 +83,22 @@ client.login(process.env.DISCORD_TOKEN);
 app.get("/api/discord-link", (req, res) => {
     const adminKey = req.query.admin_key;
 
-    if (adminKey === process.env.ADMIN_KEY) {
-        // Accès admin : toujours retourner un lien
-        return res.json({ link: currentInvite || "Pas encore généré, attends vendredi ou redémarre le bot pour générer." });
+    // Accès admin : toujours
+    if (adminKey && adminKey === process.env.ADMIN_KEY) {
+        return res.json({ link: currentInvite || "Pas encore généré, attends vendredi pour le lien normal." });
     }
 
     // Mode normal : seulement le vendredi
-    if (!currentInvite) {
+    if (!isFriday()) {
         return res.status(503).json({ error: "Accès fermé" });
+    }
+
+    if (!currentInvite) {
+        return res.status(503).json({ error: "Invite non générée, réessaie dans quelques secondes." });
     }
 
     res.json({ link: currentInvite });
 });
-
 
 app.listen(PORT, () => {
     console.log("Backend actif sur le port", PORT);
