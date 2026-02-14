@@ -79,11 +79,21 @@ client.login(process.env.DISCORD_TOKEN);
 
 // API pour le site
 app.get("/api/discord-link", (req, res) => {
+    const adminKey = req.query.admin_key;
+
+    if (adminKey === process.env.ADMIN_KEY) {
+        // Accès admin : toujours retourner un lien
+        return res.json({ link: currentInvite || "Pas encore généré, attends vendredi ou redémarre le bot pour générer." });
+    }
+
+    // Mode normal : seulement le vendredi
     if (!currentInvite) {
         return res.status(503).json({ error: "Accès fermé" });
     }
+
     res.json({ link: currentInvite });
 });
+
 
 app.listen(PORT, () => {
     console.log("Backend actif sur le port", PORT);
