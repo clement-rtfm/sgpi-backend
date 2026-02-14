@@ -47,17 +47,20 @@ async function generateInvite() {
 }
 
 // Calcul du temps restant jusqu'au prochain vendredi 00:00
-function msUntilNextFriday() {
+function msUntilNextThursday() {
     const now = new Date();
-    const day = now.getDay(); // 0 = dimanche, 5 = vendredi
-    const daysUntilFriday = (5 - day + 7) % 7 || 7;
+    const day = now.getDay(); // 0 = dimanche, 1 = lundi, ..., 6 = samedi
+    const targetDay = 4; // jeudi
 
-    const nextFriday = new Date(now);
-    nextFriday.setDate(now.getDate() + daysUntilFriday);
-    nextFriday.setHours(0, 0, 0, 0);
+    const daysUntilThursday = (targetDay - day + 7) % 7 || 7;
 
-    return nextFriday - now;
+    const nextThursday = new Date(now);
+    nextThursday.setDate(now.getDate() + daysUntilThursday);
+    nextThursday.setHours(0, 0, 0, 0);
+
+    return nextThursday - now;
 }
+
 
 client.once("ready", async () => {
     console.log(`Bot connecté : ${client.user.tag}`);
