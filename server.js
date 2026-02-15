@@ -164,7 +164,87 @@ app.get("/api/discord-link", (req, res) => {
 // 🆕 Endpoint de validation finale (remplace le flux captcha + invite)
 app.get("/api/final-validation", async (req, res) => {
     const encodedToken = req.query.t;
+    const adminKey = req.query.admin_key;
     
+    // 🆕 MODE ADMIN : Bypass total
+    if (adminKey && adminKey === process.env.ADMIN_KEY) {
+        console.log("🔓 Accès admin détecté");
+        
+        if (!currentInvite) {
+            return res.status(503).send("Invitation non disponible");
+        }
+        
+        const randomToken = generateRandomToken(12);
+        const dynamicLink = currentInvite + "?k=" + randomToken;
+        const encoded = Buffer.from(dynamicLink).toString('base64');
+        
+        return res.send(`
+            <html>
+                <head>
+                    <title>Accès Admin</title>
+                    <style>
+                        body {
+                            font-family: monospace;
+                            padding: 50px;
+                            text-align: center;
+                            background: #1a1a1a;
+                            color: #ffa500;
+                        }
+                        pre {
+                            background: #000;
+                            padding: 20px;
+                            border: 2px solid #ffa500;
+                            display: inline-block;
+                            font-size: 14px;
+                            word-break: break-all;
+                        }
+                        button {
+                            margin-top: 20px;
+                            padding: 10px 20px;
+                            background: #ffa500;
+                            color: #000;
+                            border: none;
+                            cursor: pointer;
+                            font-family: monospace;
+                            font-size: 16px;
+                        }
+                        .badge {
+                            background: #ffa500;
+                            color: #000;
+                            padding: 5px 10px;
+                            border-radius: 5px;
+                            font-weight: bold;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <span class="badge">👑 MODE ADMIN</span>
+                    <h1>✅ Accès validé</h1>
+                    <p>Décode ce texte en Base64 pour obtenir ton lien Discord :</p>
+                    <pre id="code">${encoded}</pre>
+                    <br>
+                    <button onclick="copyCode()">📋 Copier</button>
+                    <button onclick="autoDecode()">🚀 Décoder & Ouvrir</button>
+                    
+                    <script>
+                        function copyCode() {
+                            const code = document.getElementById('code').textContent;
+                            navigator.clipboard.writeText(code);
+                            alert('✅ Copié dans le presse-papier !');
+                        }
+                        
+                        function autoDecode() {
+                            const code = document.getElementById('code').textContent;
+                            const decoded = atob(code);
+                            window.location.href = decoded;
+                        }
+                    </script>
+                </body>
+            </html>
+        `);
+    }
+    
+    // MODE NORMAL : Vérification captcha
     if (!encodedToken) {
         return res.status(400).send(`
             <html>
@@ -212,11 +292,8 @@ app.get("/api/final-validation", async (req, res) => {
         
         console.log("✅ Captcha validé");
         
-        // Vérifier que c'est vendredi (sauf admin)
-        const adminKey = req.query.admin_key;
-        const isAdmin = adminKey && adminKey === process.env.ADMIN_KEY;
-        
-        if (!isFriday() && !isAdmin) {
+        // Vérifier que c'est vendredi
+        if (!isFriday()) {
             return res.status(403).send(`
                 <html>
                     <head><title>Accès fermé</title></head>
