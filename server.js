@@ -1,7 +1,7 @@
 const express = require("express");
 const { Client, GatewayIntentBits } = require("discord.js");
-const cors = require("cors");  // 🆕
-const axios = require("axios"); // 🆕
+const cors = require("cors");
+const axios = require("axios");
 require("dotenv").config();
 
 const app = express();
@@ -14,16 +14,16 @@ const client = new Client({
     intents: [GatewayIntentBits.Guilds]
 });
 
-// 🆕 CORS pour Neocities
+// CORS pour Neocities
 app.use(cors({
     origin: [
-        "https://rpmn0ise.neocities.org",  // 🔴 REMPLACE par ton vrai site
+        "https://rpmn0ise.neocities.org",
         "http://localhost:8080"
     ],
     credentials: true
 }));
 
-// 🆕 Body parser
+// Body parser
 app.use(express.json());
 
 // Nettoyage des invitations du bot
@@ -94,6 +94,13 @@ function msUntilNextFriday() {
     return nextFriday - now;
 }
 
+// Fonction helper pour générer token aléatoire
+function generateRandomToken(length = 16) {
+    const array = new Uint8Array(length);
+    require('crypto').randomFillSync(array);
+    return Array.from(array, b => b.toString(16).padStart(2, "0")).join("");
+}
+
 client.once("ready", async () => {
     console.log(`Bot connecté : ${client.user.tag}`);
     
@@ -112,61 +119,16 @@ client.once("ready", async () => {
 
 client.login(process.env.DISCORD_TOKEN);
 
-// 🆕 Endpoint de vérification captcha
-app.post("/api/verify-captcha", async (req, res) => {
-    const { token } = req.body;
-    
-    if (!token) {
-        return res.status(400).json({ success: false, error: "Token manquant" });
-    }
-    
-    try {
-        const response = await axios.post("https://hcaptcha.com/siteverify", null, {
-            params: {
-                secret: process.env.HCAPTCHA_SECRET,
-                response: token
-            }
-        });
-        
-        const data = response.data;
-        
-        if (data.success) {
-            console.log("✅ Captcha validé");
-            return res.json({ success: true });
-        } else {
-            console.log("❌ Captcha invalide :", data["error-codes"]);
-            return res.json({ success: false, error: "Captcha invalide" });
-        }
-    } catch (err) {
-        console.error("Erreur vérification captcha :", err);
-        return res.status(500).json({ success: false, error: "Erreur serveur" });
-    }
-});
+// ============================================
+// ENDPOINTS API
+// ============================================
 
-// API Discord link
-app.get("/api/discord-link", (req, res) => {
-    const adminKey = req.query.admin_key;
-    
-    if (adminKey && adminKey === process.env.ADMIN_KEY) {
-        return res.json({ link: currentInvite });
-    }
-    
-    if (!isFriday()) {
-        return res.status(503).json({ error: "Accès fermé" });
-    }
-    
-    res.json({ link: currentInvite });
-});
-
-
-
-
-// 🆕 Endpoint de validation finale (remplace le flux captcha + invite)
+// Endpoint de validation finale (avec bypass admin)
 app.get("/api/final-validation", async (req, res) => {
     const encodedToken = req.query.t;
     const adminKey = req.query.admin_key;
     
-    // 🆕 MODE ADMIN : Bypass total
+    // 🔑 MODE ADMIN : Bypass total
     if (adminKey && adminKey === process.env.ADMIN_KEY) {
         console.log("🔓 Accès admin détecté");
         
@@ -199,7 +161,7 @@ app.get("/api/final-validation", async (req, res) => {
                             word-break: break-all;
                         }
                         button {
-                            margin-top: 20px;
+                            margin: 10px 5px;
                             padding: 10px 20px;
                             background: #ffa500;
                             color: #000;
@@ -371,14 +333,116 @@ app.get("/api/final-validation", async (req, res) => {
     }
 });
 
-// Fonction helper pour générer token aléatoire
-function generateRandomToken(length = 16) {
-    const array = new Uint8Array(length);
-    require('crypto').randomFillSync(array);
-    return Array.from(array, b => b.toString(16).padStart(2, "0")).join("");
-}
+// Endpoint admin rapide (juste le lien brut)
+app.get("/api/admin/invite", (req, res) => {
+    const adminKey = req.query.key;
+    
+    if (adminKey !== process.env.ADMIN_KEY) {
+        return res.status(403).json({ error: "Accès refusé" });
+    }
+    
+    if (!currentInvite) {
+        return res.status(503).json({ error: "Invitation non disponible" });
+    }
+    
+    res.json({ 
+        invite: currentInvite,
+        created: new Date().toISOString(),
+        mode: "admin"
+    });
+});
 
+// Dashboard admin
+app.get("/api/admin/dashboard", (req, res) => {
+    const adminKey = req.query.key;
+    
+    if (adminKey !== process.env.ADMIN_KEY) {
+        return res.status(403).send("Accès refusé");
+    }
+    
+    const isOpen = isFriday();
+    const nextFriday = new Date();
+    const daysUntil = (5 - nextFriday.getDay() + 7) % 7 || 7;
+    nextFriday.setDate(nextFriday.getDate() + daysUntil);
+    
+    res.send(`
+        <html>
+            <head>
+                <title>Admin Dashboard</title>
+                <style>
+                    body { 
+                        font-family: monospace; 
+                        padding: 30px; 
+                        background: #0a0a0a; 
+                        color: #ffa500; 
+                    }
+                    .card {
+                        background: #1a1a1a;
+                        border: 2px solid #ffa500;
+                        padding: 20px;
+                        margin: 10px 0;
+                        border-radius: 5px;
+                    }
+                    .status-open { color: #00ff00; }
+                    .status-closed { color: #ff0000; }
+                    button {
+                        background: #ffa500;
+                        color: #000;
+                        border: none;
+                        padding: 10px 20px;
+                        cursor: pointer;
+                        margin: 5px;
+                        font-family: monospace;
+                    }
+                </style>
+            </head>
+            <body>
+                <h1>👑 SGPI Admin Dashboard</h1>
+                
+                <div class="card">
+                    <h2>État du serveur</h2>
+                    <p>Statut : <span class="${isOpen ? 'status-open' : 'status-closed'}">${isOpen ? '✅ OUVERT' : '🔒 FERMÉ'}</span></p>
+                    <p>Prochaine ouverture : ${nextFriday.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                </div>
+                
+                <div class="card">
+                    <h2>Invitation actuelle</h2>
+                    <p><strong>${currentInvite || 'Aucune invitation'}</strong></p>
+                    <button onclick="copyInvite()">📋 Copier</button>
+                    <button onclick="window.open('${currentInvite}', '_blank')">🚀 Ouvrir</button>
+                </div>
+                
+                <div class="card">
+                    <h2>Actions rapides</h2>
+                    <button onclick="location.reload()">🔄 Rafraîchir</button>
+                    <button onclick="window.location='/api/final-validation?admin_key=${adminKey}'">🎯 Accès final</button>
+                </div>
+                
+                <script>
+                    function copyInvite() {
+                        navigator.clipboard.writeText('${currentInvite}');
+                        alert('✅ Lien copié !');
+                    }
+                </script>
+            </body>
+        </html>
+    `);
+});
 
+// API Discord link (ancienne version, toujours fonctionnelle)
+app.get("/api/discord-link", (req, res) => {
+    const adminKey = req.query.admin_key;
+    
+    if (adminKey && adminKey === process.env.ADMIN_KEY) {
+        return res.json({ link: currentInvite });
+    }
+    
+    if (!isFriday()) {
+        return res.status(503).json({ error: "Accès fermé" });
+    }
+    
+    res.json({ link: currentInvite });
+});
 
 app.listen(PORT, () => {
     console.log("Backend actif sur le port", PORT);
