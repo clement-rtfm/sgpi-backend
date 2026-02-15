@@ -242,10 +242,10 @@ app.get("/api/final-validation", async (req, res) => {
             console.log("❌ Captcha invalide :", data["error-codes"]);
             return res.status(403).send(`
                 <html>
-                    <head><title>Captcha invalide</title></head>
+                    <head><title>Accès invalide</title></head>
                     <body style="font-family: monospace; padding: 50px; text-align: center;">
-                        <h1>❌ Captcha invalide ou expiré</h1>
-                        <p>Retourne sur le site et recommence.</p>
+                        <h1>❌ Accès invalide ou expiré</h1>
+                        <p>Attends vendredi prochain.</p>
                         <a href="https://rpmn0ise.neocities.org/sgpi/acces">← Retour</a>
                     </body>
                 </html>
