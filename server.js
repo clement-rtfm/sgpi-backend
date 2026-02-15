@@ -430,18 +430,34 @@ app.get("/api/admin/dashboard", (req, res) => {
 });
 
 // API Discord link (ancienne version, toujours fonctionnelle)
+// API Discord link (version keep-alive friendly)
 app.get("/api/discord-link", (req, res) => {
     const adminKey = req.query.admin_key;
     
+    // Mode admin : toujours retourner l'invite
     if (adminKey && adminKey === process.env.ADMIN_KEY) {
-        return res.json({ link: currentInvite });
+        return res.json({ 
+            link: currentInvite,
+            status: "admin",
+            available: true
+        });
     }
     
+    // Mode normal : retourner 200 même si fermé
     if (!isFriday()) {
-        return res.status(503).json({ error: "Accès fermé" });
+        return res.status(200).json({ 
+            error: "Accès fermé", 
+            available: false,
+            nextOpening: "Vendredi prochain"
+        });  // ✅ 200 = UP (mais fermé)
     }
     
-    res.json({ link: currentInvite });
+    // Vendredi : retourner l'invite
+    res.json({ 
+        link: currentInvite,
+        status: "open",
+        available: true
+    });
 });
 
 app.listen(PORT, () => {
