@@ -1,5 +1,7 @@
 const express = require("express");
 const { Client, GatewayIntentBits } = require("discord.js");
+const cors = require("cors");  // 🆕
+const axios = require("axios"); // 🆕
 require("dotenv").config();
 
 const app = express();
@@ -12,7 +14,19 @@ const client = new Client({
     intents: [GatewayIntentBits.Guilds]
 });
 
-// 🆕 Fonction de nettoyage (AVANT le client.once)
+// 🆕 CORS pour Neocities
+app.use(cors({
+    origin: [
+        "https://rpmn0ise.neocities.org",  // 🔴 REMPLACE par ton vrai site
+        "http://localhost:8080"
+    ],
+    credentials: true
+}));
+
+// 🆕 Body parser
+app.use(express.json());
+
+// Nettoyage des invitations du bot
 async function cleanupBotInvites() {
     try {
         const guild = await client.guilds.fetch(process.env.GUILD_ID);
@@ -21,7 +35,6 @@ async function cleanupBotInvites() {
         console.log(`Nettoyage : ${invites.size} invitation(s) trouvée(s)`);
         
         for (const [code, invite] of invites) {
-            // Supprimer seulement les invitations créées par ce bot
             if (invite.inviter?.id === client.user.id) {
                 try {
                     await invite.delete();
@@ -47,14 +60,12 @@ async function generateInvite() {
             return;
         }
 
-        // Supprime ancienne invite si existante
         if (currentInviteCode) {
             try {
                 await guild.invites.delete(currentInviteCode);
             } catch {}
         }
 
-        // Crée invite valide 3 jours
         const invite = await channel.createInvite({
             maxAge: 3 * 24 * 60 * 60,
             maxUses: 0,
@@ -69,15 +80,13 @@ async function generateInvite() {
     }
 }
 
-// Retourne true si aujourd'hui c'est vendredi
 function isFriday() {
     return new Date().getDay() === 5;
 }
 
-// Calcul du temps restant jusqu'au prochain vendredi 00:00
 function msUntilNextFriday() {
     const now = new Date();
-    const targetDay = 5; // vendredi
+    const targetDay = 5;
     const daysUntilFriday = (targetDay - now.getDay() + 7) % 7 || 7;
     const nextFriday = new Date(now);
     nextFriday.setDate(now.getDate() + daysUntilFriday);
@@ -86,20 +95,15 @@ function msUntilNextFriday() {
 }
 
 client.once("ready", async () => {
-    console.log(`Bot connecté : ${client.user.tag}`);  // ✅ Bug corrigé
+    console.log(`Bot connecté : ${client.user.tag}`);
     
-    // 🆕 1. Nettoyer TOUTES les anciennes invitations du bot
     await cleanupBotInvites();
-    
-    // 2. Générer une nouvelle invite
     await generateInvite();
     
-    // 3. Si c'est vendredi, message de confirmation
     if (isFriday()) {
         console.log("Vendredi : l'invite est accessible normalement.");
     }
     
-    // 4. Planification pour le prochain vendredi
     setTimeout(async () => {
         await generateInvite();
         setInterval(generateInvite, 7 * 24 * 60 * 60 * 1000);
@@ -108,16 +112,45 @@ client.once("ready", async () => {
 
 client.login(process.env.DISCORD_TOKEN);
 
-// API pour le site
+// 🆕 Endpoint de vérification captcha
+app.post("/api/verify-captcha", async (req, res) => {
+    const { token } = req.body;
+    
+    if (!token) {
+        return res.status(400).json({ success: false, error: "Token manquant" });
+    }
+    
+    try {
+        const response = await axios.post("https://hcaptcha.com/siteverify", null, {
+            params: {
+                secret: process.env.HCAPTCHA_SECRET,
+                response: token
+            }
+        });
+        
+        const data = response.data;
+        
+        if (data.success) {
+            console.log("✅ Captcha validé");
+            return res.json({ success: true });
+        } else {
+            console.log("❌ Captcha invalide :", data["error-codes"]);
+            return res.json({ success: false, error: "Captcha invalide" });
+        }
+    } catch (err) {
+        console.error("Erreur vérification captcha :", err);
+        return res.status(500).json({ success: false, error: "Erreur serveur" });
+    }
+});
+
+// API Discord link
 app.get("/api/discord-link", (req, res) => {
     const adminKey = req.query.admin_key;
     
-    // Accès admin : toujours retourne currentInvite même hors vendredi
     if (adminKey && adminKey === process.env.ADMIN_KEY) {
         return res.json({ link: currentInvite });
     }
     
-    // Mode normal : seulement le vendredi
     if (!isFriday()) {
         return res.status(503).json({ error: "Accès fermé" });
     }
