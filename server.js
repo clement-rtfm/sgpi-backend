@@ -186,7 +186,6 @@ app.get("/api/final-validation", async (req, res) => {
                     <pre id="code">${encoded}</pre>
                     <br>
                     <button onclick="copyCode()">📋 Copier</button>
-                    <button onclick="autoDecode()">🚀 Décoder & Ouvrir</button>
                     
                     <script>
                         function copyCode() {
